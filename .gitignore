@@ -1,0 +1,24 @@
+# Secrets
+.env
+*.env.local
+
+# Java / Maven
+backend/target/
+*.class
+*.log
+hs_err_pid*
+
+# Node / Vite (Phase 9)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

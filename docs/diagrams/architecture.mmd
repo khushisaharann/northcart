@@ -1,0 +1,34 @@
+flowchart LR
+  subgraph Browser["Browser · React 19 SPA"]
+    direction TB
+    Pages["Pages & components<br/>(customer + admin)"]
+    Ctx["AuthContext · CartContext"]
+    Axios["Axios client<br/>adds Bearer token,<br/>handles 401"]
+    Pages --> Ctx --> Axios
+  end
+
+  Axios -- "JSON over HTTPS<br/>/api/v1/**" --> Filters
+
+  subgraph API["Spring Boot 3.5 · Java 21 · modular monolith"]
+    direction TB
+    Filters["Filter chain<br/>RequestId → CORS → JWT → role rules"]
+    Ctrl["@RestController<br/>validation · DTOs"]
+    Svc["@Service modules<br/>auth · user · catalog · inventory<br/>cart · order · payment · admin"]
+    Repo["Repositories<br/>Spring Data JPA · JdbcTemplate SQL"]
+    Events(["Domain events<br/>AFTER_COMMIT"])
+    Async["@Async workers<br/>email · refunds"]
+    Job["@Scheduled<br/>unpaid-order expiry"]
+    Err["GlobalExceptionHandler<br/>one ApiError format"]
+    Filters --> Ctrl --> Svc --> Repo
+    Svc -. publishes .-> Events --> Async
+    Job --> Svc
+    Ctrl -. errors .-> Err
+  end
+
+  Repo --> PG[("PostgreSQL 16<br/>Flyway V1–V5")]
+  Async -- SMTP --> Mail["Mailpit (dev)<br/>/ SMTP provider"]
+  Svc -- "PaymentGateway" --> Pay["Razorpay API<br/>or built-in Fake gateway"]
+  Browser -. "checkout popup<br/>(Razorpay only)" .-> Pay
+
+  classDef ext fill:#eef2ff,stroke:#6366f1,color:#1e1b4b;
+  class PG,Mail,Pay ext;

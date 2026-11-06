@@ -1,0 +1,30 @@
+# =====================================================================
+# Production profile. No defaults on purpose: if a required environment
+# variable is missing, the app fails at startup instead of running with
+# a wrong database or open CORS.
+# =====================================================================
+
+app:
+  payment:
+    provider: ${PAYMENT_PROVIDER}   # no default in prod: choose explicitly
+
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    com.northcart: INFO
+
+server:
+  # Behind nginx / a load balancer: trust X-Forwarded-For/-Proto from private-network proxies,
+  # so logs show the real client IP and the app knows the original request was HTTPS.
+  forward-headers-strategy: native

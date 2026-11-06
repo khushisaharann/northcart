@@ -1,0 +1,34 @@
+sequenceDiagram
+  autonumber
+  actor C as Customer (React)
+  participant O as OrderService
+  participant I as Inventory (DB)
+  participant P as PaymentService
+  participant G as Gateway (Razorpay / Fake)
+  participant E as Email (async)
+
+  C->>O: POST /orders {addressId} + Idempotency-Key
+  Note over O,I: ONE transaction
+  O->>O: same key seen before? → return that order (200)
+  O->>I: lock cart · UPDATE stock = stock − qty<br/>WHERE stock ≥ qty (sorted by product id)
+  I-->>O: 1 row updated per line (else 409, all rolled back)
+  O->>O: snapshot prices + address · status PLACED · clear cart
+  O-->>C: 201 order NC-20261106-…
+  O--)E: OrderPlaced (after commit) → "complete your payment"
+
+  C->>P: POST /payments/{order}/initiate
+  P->>G: create gateway order (amount from DB, in paise)
+  P-->>C: providerOrderId, key id, amount
+  C->>G: customer pays in the popup
+  G-->>C: paymentId + HMAC-SHA256 signature
+  C->>P: POST /payments/verify {orderId, paymentId, signature}
+  P->>P: recompute HMAC with the SECRET · constant-time compare
+  alt signature valid
+    P->>O: lock order row · PLACED → CONFIRMED
+    P-->>C: 200 CONFIRMED
+    P--)E: PaymentReceived → receipt email
+  else forged / tampered
+    P-->>C: 400 PAYMENT_VERIFICATION_FAILED (order stays PLACED)
+  end
+
+  Note over O,I: Unpaid after 30 min → expiry job (SKIP LOCKED)<br/>asks the gateway first, else CANCELLED + stock released

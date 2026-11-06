@@ -1,0 +1,128 @@
+# =====================================================================
+# NorthCart - shared configuration (all profiles)
+# Secrets are NEVER written here. They come from environment variables
+# (or the git-ignored .env file in local development, see below).
+# =====================================================================
+
+spring:
+  application:
+    name: northcart
+
+  profiles:
+    default: dev              # used when SPRING_PROFILES_ACTIVE is not set
+
+  config:
+    # Lets local runs read KEY=VALUE pairs from the project's .env file.
+    # "optional:" means startup does not fail if the file is missing (CI, Docker, prod).
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 5000      # ms; fail fast when the DB is down
+
+  jpa:
+    # Flyway owns the schema; Hibernate only checks entities match it at startup.
+    hibernate:
+      ddl-auto: validate
+    # Close the DB session when the @Transactional service method ends, not when
+    # the HTTP response is written. Forces us to load what we need in the service layer.
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        # Lazy collections/associations are loaded for up to 50 parents in ONE query
+        # (WHERE id IN (...)) instead of one query per parent: a cheap global N+1 fix.
+        default_batch_fetch_size: 50
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  jackson:
+    deserialization:
+      # Reject unknown JSON fields (e.g. a sneaky "role":"ADMIN") with a 400
+      # instead of silently ignoring them.
+      fail-on-unknown-properties: true
+
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+
+  task:
+    execution:
+      thread-name-prefix: northcart-async-
+      pool:
+        core-size: 4
+        max-size: 8
+        queue-capacity: 500
+
+server:
+  port: ${SERVER_PORT:8080}
+  # gzip JSON responses above 1 KB: a 12-product page shrinks to roughly a quarter of its size
+  compression:
+    enabled: true
+    min-response-size: 1KB
+  error:
+    include-stacktrace: never
+    include-message: never
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+logging:
+  pattern:
+    # Every log line carries the request id: "INFO [4f9c2a1b] ... Order NC-... placed"
+    level: "%5p [%X{requestId:-}]"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+# ---- NorthCart-specific settings (bound to AppProperties) ----
+app:
+  frontend-url: ${FRONTEND_URL}
+  cors:
+    # Comma-separated list in the env var, e.g. "http://localhost:5173,https://northcart.app"
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  jwt:
+    secret: ${JWT_SECRET}               # Base64, >= 32 bytes. openssl rand -base64 32
+    expiration: ${JWT_EXPIRATION:2h}
+    issuer: northcart
+  password-reset:
+    token-ttl: 15m
+  shipping:
+    flat-fee: 49.00
+    free-shipping-threshold: 999.00
+  orders:
+    payment-timeout: 30m
+    expiry-job-enabled: true
+  payment:
+    # fake = built-in simulator (no account needed). razorpay = Razorpay test/live mode.
+    provider: ${PAYMENT_PROVIDER:fake}
+    currency: INR
+    razorpay:
+      key-id: ${RAZORPAY_KEY_ID:}           # public, e.g. rzp_test_xxx
+      key-secret: ${RAZORPAY_KEY_SECRET:}   # PRIVATE, never sent to the browser
+      base-url: https://api.razorpay.com/v1
+  mail:
+    from: ${MAIL_FROM}
+  admin:
+    # Optional: creates this ADMIN account at startup if it doesn't exist yet.
+    email: ${ADMIN_EMAIL:}
+    password: ${ADMIN_PASSWORD:}

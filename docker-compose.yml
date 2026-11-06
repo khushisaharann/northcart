@@ -1,0 +1,96 @@
+# NorthCart with Docker Compose. Values come from .env (copy .env.example).
+#
+# Local development (what you use day to day):
+#   docker compose up -d                       -> PostgreSQL + Mailpit only;
+#                                                 run the backend with mvn and the frontend with npm
+#
+# Whole stack in containers (production-like, the "prod" Spring profile):
+#   docker compose --profile app up -d --build -> + backend + frontend (nginx)
+#   open http://localhost:3000
+#
+#   docker compose --profile app down          -> stop everything (data is kept)
+#   docker compose down -v                     -> stop AND delete all database data
+#
+# The fallbacks after ":-" are local-only defaults.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: northcart-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-northcart}
+      POSTGRES_USER: ${POSTGRES_USER:-northcart}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-northcart}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - northcart-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-northcart} -d ${POSTGRES_DB:-northcart}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Fake SMTP server: catches every email the app sends so nothing reaches real inboxes.
+  # Web UI: http://localhost:8025
+  mailpit:
+    # Dev-only tool, so "latest" is acceptable here. Everything that would ship to
+    # production (postgres, the base images of our own images) is pinned.
+    image: axllent/mailpit:latest
+    container_name: northcart-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # web inbox
+
+  # ---------------------------------------------------------------- app profile
+  backend:
+    profiles: ["app"]
+    build: ./backend
+    image: northcart-backend:local
+    container_name: northcart-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # Inside the Docker network, services reach each other by service name.
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-northcart}
+      DB_USERNAME: ${POSTGRES_USER:-northcart}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-northcart}
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_FROM: ${MAIL_FROM:-no-reply@northcart.local}
+      FRONTEND_URL: http://localhost:${APP_PORT:-3000}    # used in password-reset links
+      CORS_ALLOWED_ORIGINS: http://localhost:${APP_PORT:-3000}  # same origin via nginx; kept explicit
+      # REQUIRED, no default on purpose: the app refuses to start without a real key.
+      # Generate one with:  openssl rand -base64 32   and put JWT_SECRET=... in .env
+      JWT_SECRET: ${JWT_SECRET:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-fake}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      # Local demo only: also load the 12-product sample catalog. For a real deployment
+      # set FLYWAY_LOCATIONS=classpath:db/migration
+      SPRING_FLYWAY_LOCATIONS: ${FLYWAY_LOCATIONS:-classpath:db/migration,classpath:db/dev-data}
+    # Not published to the host: only nginx talks to it. Uncomment to call it directly.
+    # ports:
+    #   - "8080:8080"
+
+  frontend:
+    profiles: ["app"]
+    build: ./frontend
+    image: northcart-frontend:local
+    container_name: northcart-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-3000}:80"
+
+volumes:
+  northcart-pgdata:

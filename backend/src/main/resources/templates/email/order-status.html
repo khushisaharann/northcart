@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><meta charset="UTF-8"><title>NorthCart</title></head>
+<body style="margin:0;padding:24px;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+       style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;">
+    <tr><td style="padding:32px;">
+        <h1 style="margin:0 0 16px;font-size:22px;">NorthCart</h1>
+        <p>Hi <span th:text="${order.customerName}">Customer</span>,</p>
+        <p>Your order <strong th:text="${order.orderNumber}">NC-…</strong> is now
+            <strong th:text="${#strings.toLowerCase(order.status)}">status</strong>.</p>
+        <p th:if="${order.status.name() == 'CANCELLED'}" style="font-size:14px;color:#4b5563;">
+            If you already paid, the full amount is refunded to your original payment method.</p>
+        <div th:replace="~{email/fragments :: items(${order})}"></div>
+        <p style="font-size:14px;color:#4b5563;">Shipping to: <span th:text="${order.shippingAddress}">Address</span></p>
+        <div th:replace="~{email/fragments :: button(${order})}"></div>
+    </td></tr>
+</table>
+</body>
+</html>

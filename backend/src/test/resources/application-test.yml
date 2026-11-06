@@ -1,0 +1,34 @@
+# Test profile (activated by @ActiveProfiles("test") in AbstractIntegrationTest).
+# The datasource comes from Testcontainers (@ServiceConnection), not from here.
+# Every value is a test-only dummy.
+
+spring:
+  mail:
+    host: localhost
+    port: 1025          # JavaMailSender is replaced by a Mockito mock in tests anyway
+
+app:
+  frontend-url: http://localhost:5173
+  cors:
+    allowed-origins: http://localhost:5173
+  jwt:
+    secret: dGVzdC1vbmx5LW5vcnRoY2FydC1qd3Qta2V5LTMyLWJ5dGVzLW1pbmltdW0hIQ==
+    expiration: 15m
+  mail:
+    from: no-reply@northcart.test
+  orders:
+    expiry-job-enabled: false   # tests call OrderService.expireUnpaidOrders() directly
+  admin:
+    email: admin@northcart.test
+    password: Admin12345
+
+logging:
+  level:
+    com.northcart: INFO
+
+management:
+  health:
+    mail:
+      # JavaMailSender is a Mockito mock in tests, so the mail health check finds no real
+      # JavaMailSenderImpl and fails the whole application context.
+      enabled: false

@@ -1,0 +1,50 @@
+# =====================================================================
+# Local development profile.
+# Defaults match docker-compose.yml so the app runs with zero setup;
+# values in .env or real environment variables override them.
+# These are throwaway local credentials, not real secrets.
+# =====================================================================
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/northcart}
+    username: ${DB_USERNAME:northcart}
+    password: ${DB_PASSWORD:northcart}
+
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    # Schema migrations + dev-only sample catalog (never loaded in test or prod)
+    locations: classpath:db/migration,classpath:db/dev-data
+
+  mail:
+    host: ${MAIL_HOST:localhost}   # Mailpit
+    port: ${MAIL_PORT:1025}
+
+management:
+  endpoint:
+    health:
+      show-details: always         # shows db + mail status at /actuator/health
+
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  jwt:
+    # DEV-ONLY key. Anyone reading this repo can forge dev tokens, which is fine locally.
+    # The prod profile has no default, so production MUST set JWT_SECRET.
+    secret: ${JWT_SECRET:ZGV2LW9ubHktbm9ydGhjYXJ0LWp3dC1rZXktY2hhbmdlLWluLXByb2QtISEhIQ==}
+  mail:
+    from: ${MAIL_FROM:no-reply@northcart.local}
+  admin:
+    email: ${ADMIN_EMAIL:admin@northcart.local}
+    password: ${ADMIN_PASSWORD:Admin12345}
+
+logging:
+  level:
+    com.northcart: DEBUG
+    org.hibernate.SQL: DEBUG                 # print every SQL statement
+    org.hibernate.orm.jdbc.bind: TRACE       # print the bound parameter values

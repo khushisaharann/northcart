@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<body>
+<!-- Shared pieces for order emails. Used with th:replace="~{email/fragments :: name(order)}" -->
+
+<table th:fragment="items(order)" role="presentation" width="100%" cellpadding="0" cellspacing="0"
+       style="border-collapse:collapse;font-size:14px;margin:16px 0;">
+    <tr th:each="line : ${order.lines}">
+        <td style="padding:8px 0;border-bottom:1px solid #e5e7eb;">
+            <span th:text="${line.name}">Product</span> × <span th:text="${line.quantity}">1</span>
+        </td>
+        <td style="padding:8px 0;border-bottom:1px solid #e5e7eb;text-align:right;"
+            th:text="|₹${#numbers.formatDecimal(line.lineTotal, 1, 'COMMA', 2, 'POINT')}|">₹0.00</td>
+    </tr>
+    <tr>
+        <td style="padding:8px 0;color:#4b5563;">Subtotal</td>
+        <td style="padding:8px 0;text-align:right;color:#4b5563;"
+            th:text="|₹${#numbers.formatDecimal(order.subtotal, 1, 'COMMA', 2, 'POINT')}|">₹0.00</td>
+    </tr>
+    <tr>
+        <td style="padding:4px 0;color:#4b5563;">Shipping</td>
+        <td style="padding:4px 0;text-align:right;color:#4b5563;"
+            th:text="${order.shippingFee.signum() == 0} ? 'Free' : |₹${#numbers.formatDecimal(order.shippingFee, 1, 'COMMA', 2, 'POINT')}|">Free</td>
+    </tr>
+    <tr>
+        <td style="padding:8px 0;font-weight:bold;">Total</td>
+        <td style="padding:8px 0;text-align:right;font-weight:bold;"
+            th:text="|₹${#numbers.formatDecimal(order.total, 1, 'COMMA', 2, 'POINT')}|">₹0.00</td>
+    </tr>
+</table>
+
+<p th:fragment="button(order)" style="margin:24px 0;">
+    <a th:href="${order.orderUrl}" href="#"
+       style="background:#111827;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block;">
+        View your order
+    </a>
+</p>
+</body>
+</html>

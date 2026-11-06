@@ -1,0 +1,121 @@
+erDiagram
+    USERS ||--o{ USER_ROLES : has
+    ROLES ||--o{ USER_ROLES : "granted to"
+    USERS ||--o{ ADDRESSES : saves
+    USERS ||--o{ PASSWORD_RESET_TOKENS : requests
+    USERS ||--o| CARTS : owns
+    CARTS ||--o{ CART_ITEMS : contains
+    PRODUCTS ||--o{ CART_ITEMS : "added as"
+    CATEGORIES ||--o{ PRODUCTS : groups
+    PRODUCTS ||--o{ PRODUCT_IMAGES : shows
+    PRODUCTS ||--|| INVENTORY : "stocked by"
+    USERS ||--o{ ORDERS : places
+    ORDERS ||--|{ ORDER_ITEMS : contains
+    PRODUCTS ||--o{ ORDER_ITEMS : "snapshotted in"
+    ORDERS ||--o{ PAYMENTS : "paid via"
+
+    USERS {
+        bigint id PK
+        varchar email UK
+        varchar password_hash
+        varchar full_name
+        varchar phone
+        boolean enabled
+    }
+    ROLES {
+        bigint id PK
+        varchar name UK "CUSTOMER | ADMIN"
+    }
+    USER_ROLES {
+        bigint user_id PK,FK
+        bigint role_id PK,FK
+    }
+    PASSWORD_RESET_TOKENS {
+        bigint id PK
+        bigint user_id FK
+        varchar token_hash UK "SHA-256"
+        timestamptz expires_at
+        timestamptz used_at
+    }
+    ADDRESSES {
+        bigint id PK
+        bigint user_id FK
+        varchar line1
+        varchar city
+        varchar postal_code
+        boolean is_default "max 1 per user"
+    }
+    CATEGORIES {
+        bigint id PK
+        varchar name UK
+        varchar slug UK
+        boolean active
+    }
+    PRODUCTS {
+        bigint id PK
+        bigint category_id FK
+        varchar name
+        varchar slug UK
+        varchar sku UK
+        numeric price "CHECK >= 0"
+        boolean active "soft delete"
+        int sold_count
+        tsvector search_vector "generated, GIN"
+    }
+    PRODUCT_IMAGES {
+        bigint id PK
+        bigint product_id FK
+        varchar url
+        int sort_order
+    }
+    INVENTORY {
+        bigint id PK
+        bigint product_id FK,UK
+        int quantity_available "CHECK >= 0"
+        int low_stock_threshold
+        bigint version "optimistic lock"
+    }
+    CARTS {
+        bigint id PK
+        bigint user_id FK,UK
+    }
+    CART_ITEMS {
+        bigint id PK
+        bigint cart_id FK
+        bigint product_id FK
+        int quantity "CHECK > 0"
+    }
+    ORDERS {
+        bigint id PK
+        varchar order_number UK
+        bigint user_id FK
+        varchar status
+        numeric subtotal
+        numeric shipping_fee
+        numeric total "= subtotal + shipping"
+        varchar ship_city "address snapshot"
+        varchar idempotency_key "UK with user_id"
+        timestamptz confirmed_at "tracking (V3)"
+        timestamptz shipped_at
+        timestamptz delivered_at
+        timestamptz cancelled_at
+    }
+    ORDER_ITEMS {
+        bigint id PK
+        bigint order_id FK
+        bigint product_id FK
+        varchar product_name "snapshot"
+        varchar sku "snapshot"
+        numeric unit_price "snapshot"
+        int quantity
+        numeric line_total
+    }
+    PAYMENTS {
+        bigint id PK
+        bigint order_id FK
+        varchar provider
+        varchar provider_order_id UK
+        varchar provider_payment_id UK
+        numeric amount
+        varchar status "PENDING | SUCCESS | FAILED"
+    }
